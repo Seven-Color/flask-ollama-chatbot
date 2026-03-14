@@ -26,12 +26,25 @@ from router import Router
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# 创建 SocketIO
-socketio = SocketIO(
-    app, 
-    cors_allowed_origins="*", 
-    async_mode='threading'
-)
+# 创建 SocketIO - Windows 兼容模式
+try:
+    import eventlet
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*", 
+        async_mode='eventlet',
+        ping_timeout=30,
+        ping_interval=25
+    )
+except ImportError:
+    # 没有 eventlet 使用 threading
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*", 
+        async_mode='threading',
+        ping_timeout=30,
+        ping_interval=25
+    )
 
 # 初始化服务
 print("初始化服务...")

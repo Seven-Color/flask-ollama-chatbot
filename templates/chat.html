@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama 智能聊天助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            color: #fff;
+            font-size: 1.5rem;
+        }
+        
+        .model-select {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .model-select label {
+            color: #aaa;
+        }
+        
+        .model-select select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #2a2a4a;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .chat-container {
+            flex: 1;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            min-height: 400px;
+        }
+        
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .message.user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .message.assistant .avatar {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .message-content {
+            max-width: 70%;
+            margin: 0 12px;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message.assistant .message-content {
+            background: rgba(255, 255, 255, 0.1);
+            color: #eee;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 12px 18px;
+        }
+        
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: #38ef7d;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing span:nth-child(1) { animation-delay: 0s; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        .input-area {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        .input-area textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            resize: none;
+            max-height: 120px;
+            outline: none;
+            padding: 8px;
+        }
+        
+        .input-area textarea::placeholder {
+            color: #888;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-send {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        
+        .btn-send:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-voice {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            position: relative;
+        }
+        
+        .btn-voice:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-voice.recording {
+            background: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .btn-clear {
+            background: rgba(255, 255, 255, 0.1);
+            color: #aaa;
+        }
+        
+        .btn-clear:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .status {
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+        }
+        
+        /* 语音输入弹窗 */
+        .voice-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .voice-modal.active {
+            display: flex;
+        }
+        
+        .voice-modal-content {
+            background: #2a2a4a;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        
+        .voice-modal h3 {
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        
+        .voice-wave {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 20px auto;
+            animation: pulse-wave 1s infinite;
+        }
+        
+        @keyframes pulse-wave {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .voice-result {
+            color: #38ef7d;
+            font-size: 18px;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Ollama 智能助手</h1>
+        <div class="model-select">
+            <label>模型:</label>
+            <select id="modelSelect">
+                <option value="llama2">llama2</option>
+                <option value="mistral">mistral</option>
+                <option value="codellama">codellama</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="chat-container">
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="avatar">🤖</div>
+                <div class="message-content">你好！我是基于 Ollama 的 AI 助手。我支持：
+
+• 💬 文本聊天
+• 🎤 语音输入（点击麦克风按钮）
+• 🔊 语音输出
+
+请选择上方模型，然后开始聊天吧！</div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <textarea 
+                id="messageInput" 
+                placeholder="输入消息... (Shift+Enter 换行)"
+                rows="1"
+            ></textarea>
+            <div class="controls">
+                <button class="btn btn-voice" id="voiceBtn" title="语音输入">
+                    🎤
+                </button>
+                <button class="btn btn-send" id="sendBtn">
+                    发送
+                </button>
+                <button class="btn btn-clear" id="clearBtn" title="清除对话">
+                    🗑️
+                </button>
+            </div>
+        </div>
+        
+        <div class="status" id="status">就绪</div>
+    </div>
+    
+    <!-- 语音录制弹窗 -->
+    <div class="voice-modal" id="voiceModal">
+        <div class="voice-modal-content">
+            <h3>🎤 正在录音...</h3>
+            <div class="voice-wave"></div>
+            <div class="voice-result" id="voiceResult"></div>
+            <button class="btn btn-send" id="stopVoiceBtn">完成</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // 配置
+        const sessionId = 'session_' + Date.now();
+        let currentModel = 'llama2';
+        let isRecording = false;
+        let recognition = null;
+        
+        // DOM 元素
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const modelSelect = document.getElementById('modelSelect');
+        const statusDiv = document.getElementById('status');
+        const voiceModal = document.getElementById('voiceModal');
+        const voiceResult = document.getElementById('voiceResult');
+        const stopVoiceBtn = document.getElementById('stopVoiceBtn');
+        
+        // Socket.IO 连接
+        const socket = io();
+        
+        socket.on('connect', () => {
+            statusDiv.textContent = '已连接';
+        });
+        
+        socket.on('disconnect', () => {
+            statusDiv.textContent = '连接断开';
+        });
+        
+        socket.on('response', (data) => {
+            if (data.token) {
+                appendToken(data.token);
+            } else if (data.done) {
+                finishResponse();
+            }
+        });
+        
+        socket.on('voice_text', (data) => {
+            messageInput.value = data.text;
+            voiceModal.classList.remove('active');
+        });
+        
+        // 模型选择
+        modelSelect.addEventListener('change', (e) => {
+            currentModel = e.target.value;
+            loadModels();
+        });
+        
+        // 加载模型列表
+        async function loadModels() {
+            try {
+                const res = await fetch('/api/models');
+                const data = await res.json();
+                modelSelect.innerHTML = '';
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    if (m === currentModel) opt.selected = true;
+                    modelSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.log('无法加载模型列表');
+            }
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // 显示用户消息
+            addMessage('user', message);
+            messageInput.value = '';
+            
+            // 添加等待消息
+            const waitingMsg = addMessage('assistant', '');
+            const contentDiv = waitingMsg.querySelector('.message-content');
+            
+            // 显示加载动画
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing';
+            typingDiv.innerHTML = '<span></span><span></span><span></span>';
+            contentDiv.appendChild(typingDiv);
+            
+            statusDiv.textContent = '正在思考...';
+            
+            try {
+                const res = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message,
+                        model: currentModel,
+                        session_id: sessionId
+                    })
+                });
+                
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                
+                typingDiv.remove();
+                
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.token) {
+                                    contentDiv.textContent += data.token;
+                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+                statusDiv.textContent = '就绪';
+                
+            } catch (e) {
+                typingDiv.remove();
+                contentDiv.textContent = '错误: ' + e.message;
+                statusDiv.textContent = '错误';
+            }
+        }
+        
+        // 添加消息
+        function addMessage(role, content) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `
+                <div class="avatar">${role === 'user' ? '👤' : '🤖'}</div>
+                <div class="message-content">${escapeHtml(content)}</div>
+            `;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return div;
+        }
+        
+        // 追加 token
+        function appendToken(token) {
+            const lastMsg = messagesDiv.querySelector('.message.assistant:last-child .message-content');
+            if (lastMsg) {
+                const typing = lastMsg.querySelector('.typing');
+                if (typing) typing.remove();
+                lastMsg.textContent += token;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+        
+        // 完成响应
+        function finishResponse() {
+            statusDiv.textContent = '就绪';
+        }
+        
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 事件绑定
+        sendBtn.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // 自动调整输入框高度
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        });
+        
+        // 清除对话
+        clearBtn.addEventListener('click', async () => {
+            if (confirm('确定清除对话历史吗？')) {
+                await fetch(`/api/history?session_id=${sessionId}`, {method: 'DELETE'});
+                messagesDiv.innerHTML = `
+                    <div class="message assistant">
+                        <div class="avatar">🤖</div>
+                        <div class="message-content">对话已清除</div>
+                    </div>
+                `;
+            }
+        });
+        
+        // 语音输入 - Web Speech API
+        voiceBtn.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('您的浏览器不支持语音识别，请使用 Chrome 浏览器');
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            
+            recognition.onstart = () => {
+                voiceBtn.classList.add('recording');
+                voiceModal.classList.add('active');
+                voiceResult.textContent = '正在聆听...';
+            };
+            
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    voiceResult.textContent = finalTranscript;
+                    messageInput.value = finalTranscript;
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                voiceBtn.classList.remove('recording');
+                voiceModal.classList.remove('active');
+                voiceResult.textContent = '识别错误: ' + event.error;
+            };
+            
+            recognition.onend = () => {
+                voiceBtn.classList.remove('recording');
+            };
+            
+            recognition.start();
+        });
+        
+        stopVoiceBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop();
+            }
+            voiceModal.classList.remove('active');
+        });
+        
+        // 初始化
+        loadModels();
+    </script>
+</body>
+</html>

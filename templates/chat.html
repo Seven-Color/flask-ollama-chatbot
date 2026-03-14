@@ -15,39 +15,14 @@
             flex-direction: column;
         }
         
-        /* 头部 */
         .header {
             background: rgba(0, 0, 0, 0.3);
             padding: 15px 20px;
             backdrop-filter: blur(10px);
         }
         
-        .header-content {
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
         .header h1 { color: #fff; font-size: 1.3rem; }
         
-        /* 设置按钮 */
-        .settings-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .settings-btn:hover { background: rgba(255,255,255,0.2); }
-        
-        /* 主容器 */
         .chat-container {
             flex: 1;
             max-width: 900px;
@@ -58,7 +33,6 @@
             flex-direction: column;
         }
         
-        /* 消息区域 */
         .messages {
             flex: 1;
             overflow-y: auto;
@@ -117,7 +91,6 @@
             border-bottom-left-radius: 4px;
         }
         
-        /* 输入区域 */
         .input-area {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 16px;
@@ -159,7 +132,7 @@
             color: #fff;
         }
         
-        .btn-send:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(102,126,234,0.4); }
+        .btn-send:hover { transform: scale(1.05); }
         
         .btn-voice {
             background: rgba(255,255,255,0.1);
@@ -168,142 +141,41 @@
         
         .btn-voice:hover { background: rgba(255,255,255,0.2); }
         
-        .btn-voice.recording { background: #e74c3c; animation: pulse 1s infinite; }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
+        .btn-voice.recording { background: #e74c3c; }
         
         .btn-clear { background: rgba(255,255,255,0.1); color: #aaa; }
         .btn-clear:hover { background: rgba(255,255,255,0.2); color: #fff; }
         
-        .btn-tts {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-        }
-        
+        .btn-tts { background: rgba(255,255,255,0.1); color: #fff; }
         .btn-tts:hover { background: rgba(255,255,255,0.2); }
-        
         .btn-tts.speaking { background: #27ae60; }
         
         .controls { display: flex; gap: 8px; }
         
         .status { color: #888; font-size: 12px; text-align: center; padding: 8px; }
         
-        /* 设置面板 */
-        .settings-panel {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-        
-        .settings-panel.active { display: block; }
-        
-        .settings-content {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #2a2a4a;
-            border-radius: 20px;
-            padding: 30px;
-        }
-        
-        .settings-content h2 {
-            color: #fff;
-            margin-bottom: 20px;
+        .typing {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            gap: 4px;
+            padding: 12px 18px;
         }
         
-        .settings-close {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 24px;
-            cursor: pointer;
+        .typing span {
+            width: 8px; height: 8px;
+            background: #38ef7d;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
         }
         
-        .settings-section {
-            margin-bottom: 25px;
+        .typing span:nth-child(1) { animation-delay: 0s; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
         }
         
-        .settings-section h3 {
-            color: #38ef7d;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-        
-        .setting-item {
-            margin-bottom: 15px;
-        }
-        
-        .setting-item label {
-            display: block;
-            color: #aaa;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        
-        .setting-item select,
-        .setting-item input[type="text"],
-        .setting-item textarea {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #1a1a2e;
-            color: #fff;
-            font-size: 14px;
-        }
-        
-        .setting-item input[type="range"] {
-            width: 100%;
-        }
-        
-        .setting-item .range-value {
-            color: #38ef7d;
-            float: right;
-        }
-        
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .checkbox-item input {
-            width: 18px; height: 18px;
-        }
-        
-        .checkbox-item label { margin: 0; }
-        
-        /* 模式选择标签 */
-        .mode-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .mode-tab {
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
-            color: #aaa;
-            cursor: pointer;
-            border: none;
-            font-size: 14px;
-        }
-        
-        .mode-tab.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff;
-        }
-        
-        /* 语音弹窗 */
         .voice-modal {
             display: none;
             position: fixed;
@@ -338,125 +210,14 @@
             50% { transform: scale(1.1); opacity: 0.8; }
         }
         
-        .voice-result { color: #38ef7d; font-size: 18px; margin: 20px 0; min-height: 30px; }
+        .voice-result { color: #38ef7d; font-size: 18px; margin: 20px 0; }
     </style>
 </head>
 <body>
-    <!-- 设置面板 -->
-    <div class="settings-panel" id="settingsPanel">
-        <div class="settings-content">
-            <h2>
-                ⚙️ 设置
-                <button class="settings-close" onclick="toggleSettings()">×</button>
-            </h2>
-            
-            <!-- LLM 设置 -->
-            <div class="settings-section">
-                <h3>🤖 大语言模型</h3>
-                
-                <div class="setting-item">
-                    <label>模型选择</label>
-                    <select id="llmModel">
-                        <option value="llama2">llama2</option>
-                        <option value="mistral">mistral</option>
-                        <option value="codellama">codellama</option>
-                    </select>
-                </div>
-                
-                <div class="setting-item">
-                    <label>Temperature (创造性) <span class="range-value" id="tempValue">0.7</span></label>
-                    <input type="range" id="llmTemperature" min="0" max="2" step="0.1" value="0.7">
-                </div>
-                
-                <div class="setting-item">
-                    <label>Top P (采样) <span class="range-value" id="topPValue">0.9</span></label>
-                    <input type="range" id="llmTopP" min="0" max="1" step="0.1" value="0.9">
-                </div>
-                
-                <div class="setting-item">
-                    <label>System Prompt</label>
-                    <textarea id="llmSystemPrompt" rows="3" placeholder="设置系统提示词...">你是一个有用的 AI 助手。</textarea>
-                </div>
-                
-                <div class="setting-item checkbox-item">
-                    <input type="checkbox" id="useLangChain">
-                    <label>使用 LangChain</label>
-                </div>
-            </div>
-            
-            <!-- STT 设置 -->
-            <div class="settings-section">
-                <h3>🎤 语音识别 (STT)</h3>
-                
-                <div class="mode-tabs">
-                    <button class="mode-tab active" data-mode="websocket">Web Speech</button>
-                    <button class="mode-tab" data-mode="whisper">Whisper</button>
-                </div>
-                
-                <div class="setting-item">
-                    <label>识别语言</label>
-                    <select id="sttLanguage">
-                        <option value="zh-CN">中文</option>
-                        <option value="en-US">English</option>
-                        <option value="ja-JP">日本語</option>
-                        <option value="ko-KR">한국어</option>
-                    </select>
-                </div>
-                
-                <div class="setting-item" id="whisperSettings" style="display:none;">
-                    <label>Whisper 模型</label>
-                    <select id="whisperModel">
-                        <option value="tiny">tiny (快速)</option>
-                        <option value="base" selected>base (平衡)</option>
-                        <option value="small">small</option>
-                        <option value="medium">medium</option>
-                    </select>
-                </div>
-            </div>
-            
-            <!-- TTS 设置 -->
-            <div class="settings-section">
-                <h3>🔊 语音合成 (TTS)</h3>
-                
-                <div class="mode-tabs">
-                    <button class="mode-tab active" data-mode="pyttsx3">本地 (pyttsx3)</button>
-                    <button class="mode-tab" data-mode="gtts">Google TTS</button>
-                    <button class="mode-tab" data-mode="edge">Edge TTS</button>
-                </div>
-                
-                <div class="setting-item">
-                    <label>语速 <span class="range-value" id="rateValue">150</span></label>
-                    <input type="range" id="ttsRate" min="50" max="300" value="150">
-                </div>
-                
-                <div class="setting-item">
-                    <label>音量 <span class="range-value" id="volumeValue">1.0</span></label>
-                    <input type="range" id="ttsVolume" min="0" max="1" step="0.1" value="1">
-                </div>
-                
-                <div class="setting-item">
-                    <label>声音</label>
-                    <select id="ttsVoice">
-                        <option value="">默认</option>
-                    </select>
-                </div>
-            </div>
-            
-            <button class="btn btn-send" onclick="saveSettings()" style="width:100%; justify-content:center;">
-                保存设置
-            </button>
-        </div>
-    </div>
-    
-    <!-- 头部 -->
     <div class="header">
-        <div class="header-content">
-            <h1>🤖 Ollama 智能助手</h1>
-            <button class="settings-btn" onclick="toggleSettings()">⚙️ 设置</button>
-        </div>
+        <h1>🤖 Ollama 智能助手</h1>
     </div>
     
-    <!-- 聊天容器 -->
     <div class="chat-container">
         <div class="messages" id="messages">
             <div class="message assistant">
@@ -465,9 +226,8 @@
 
 支持功能：
 • 💬 文本聊天
-• 🎤 语音输入（点击麦克风）
-• 🔊 语音输出（点击扬声器）
-• ⚙️ 参数设置（点击右上角设置）
+• 🎤 语音输入
+• 🔊 语音输出
 
 请开始聊天吧！</div>
             </div>
@@ -476,8 +236,8 @@
         <div class="input-area">
             <textarea id="messageInput" placeholder="输入消息..." rows="1"></textarea>
             <div class="controls">
-                <button class="btn btn-voice" id="voiceBtn" title="语音输入">🎤</button>
-                <button class="btn btn-tts" id="ttsBtn" title="语音输出">🔊</button>
+                <button class="btn btn-voice" id="voiceBtn">🎤</button>
+                <button class="btn btn-tts" id="ttsBtn">🔊</button>
                 <button class="btn btn-send" id="sendBtn">发送</button>
                 <button class="btn btn-clear" id="clearBtn">🗑️</button>
             </div>
@@ -486,7 +246,7 @@
         <div class="status" id="status">就绪</div>
     </div>
     
-    <!-- 语音录制弹窗 -->
+    <!-- 语音弹窗 -->
     <div class="voice-modal" id="voiceModal">
         <div class="voice-modal-content">
             <h3>🎤 正在录音...</h3>
@@ -496,23 +256,12 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        // 状态
         const sessionId = 'session_' + Date.now();
-        let currentModel = 'llama2';
         let isRecording = false;
         let recognition = null;
         let isSpeaking = false;
         
-        // 配置
-        let config = {
-            llm: { temperature: 0.7, top_p: 0.9, use_langchain: false },
-            stt: { mode: 'websocket', language: 'zh-CN' },
-            tts: { mode: 'pyttsx3', rate: 150, volume: 1.0 }
-        };
-        
-        // DOM
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -523,18 +272,6 @@
         const voiceModal = document.getElementById('voiceModal');
         const voiceResult = document.getElementById('voiceResult');
         const stopVoiceBtn = document.getElementById('stopVoiceBtn');
-        const settingsPanel = document.getElementById('settingsPanel');
-        
-        // Socket
-        const socket = io();
-        
-        socket.on('connect', () => statusDiv.textContent = '已连接');
-        socket.on('disconnect', () => statusDiv.textContent = '连接断开');
-        
-        socket.on('response', (data) => {
-            if (data.token) appendToken(data.token);
-            else if (data.done) finishResponse();
-        });
         
         // 发送消息
         async function sendMessage() {
@@ -546,7 +283,6 @@
             
             const waitingMsg = addMessage('assistant', '');
             const contentDiv = waitingMsg.querySelector('.message-content');
-            
             contentDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
             statusDiv.textContent = '正在思考...';
             
@@ -554,11 +290,7 @@
                 const res = await fetch('/api/chat/stream', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        message, model: currentModel, session_id: sessionId,
-                        temperature: config.llm.temperature,
-                        top_p: config.llm.top_p
-                    })
+                    body: JSON.stringify({message, session_id: sessionId})
                 });
                 
                 const reader = res.body.getReader();
@@ -598,19 +330,6 @@
             messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             return div;
-        }
-        
-        function appendToken(token) {
-            const lastMsg = messagesDiv.querySelector('.message.assistant:last-child .message-content');
-            if (lastMsg) {
-                lastMsg.querySelector('.typing')?.remove();
-                lastMsg.textContent += token;
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-        }
-        
-        function finishResponse() {
-            statusDiv.textContent = '就绪';
         }
         
         function escapeHtml(text) {
@@ -653,7 +372,7 @@
             
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.lang = config.stt.language;
+            recognition.lang = 'zh-CN';
             recognition.continuous = false;
             recognition.interimResults = true;
             
@@ -689,8 +408,8 @@
             voiceModal.classList.remove('active');
         });
         
-        // 语音输出 (TTS)
-        ttsBtn.addEventListener('click', async () => {
+        // 语音输出
+        ttsBtn.addEventListener('click', () => {
             const lastMsg = messagesDiv.querySelector('.message.assistant:last-child .message-content');
             if (!lastMsg) return;
             
@@ -704,16 +423,9 @@
                 return;
             }
             
-            // 使用浏览器原生 TTS
             const utterance = new SpeechSynthesisUtterance(text);
-            
-            // 尝试找中文声音
-            const voices = speechSynthesis.getVoices();
-            const zhVoice = voices.find(v => v.lang.startsWith('zh'));
+            const zhVoice = speechSynthesis.getVoices().find(v => v.lang.startsWith('zh'));
             if (zhVoice) utterance.voice = zhVoice;
-            
-            utterance.rate = config.tts.rate / 150;
-            utterance.volume = config.tts.volume;
             
             utterance.onstart = () => {
                 isSpeaking = true;
@@ -727,88 +439,6 @@
             
             speechSynthesis.speak(utterance);
         });
-        
-        // 设置面板
-        function toggleSettings() {
-            settingsPanel.classList.toggle('active');
-        }
-        
-        // 范围滑块
-        document.getElementById('llmTemperature').addEventListener('input', (e) => {
-            document.getElementById('tempValue').textContent = e.target.value;
-            config.llm.temperature = parseFloat(e.target.value);
-        });
-        
-        document.getElementById('llmTopP').addEventListener('input', (e) => {
-            document.getElementById('topPValue').textContent = e.target.value;
-            config.llm.top_p = parseFloat(e.target.value);
-        });
-        
-        document.getElementById('ttsRate').addEventListener('input', (e) => {
-            document.getElementById('rateValue').textContent = e.target.value;
-            config.tts.rate = parseInt(e.target.value);
-        });
-        
-        document.getElementById('ttsVolume').addEventListener('input', (e) => {
-            document.getElementById('volumeValue').textContent = e.target.value;
-            config.tts.volume = parseFloat(e.target.value);
-        });
-        
-        // STT 模式切换
-        document.querySelectorAll('#sttSettings + .mode-tabs .mode-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('#sttSettings + .mode-tabs .mode-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                config.stt.mode = tab.dataset.mode;
-                document.getElementById('whisperSettings').style.display = 
-                    config.stt.mode === 'whisper' ? 'block' : 'none';
-            });
-        });
-        
-        // 保存设置
-        async function saveSettings() {
-            config.llm.model = document.getElementById('llmModel').value;
-            config.llm.system_prompt = document.getElementById('llmSystemPrompt').value;
-            config.llm.use_langchain = document.getElementById('useLangChain').checked;
-            
-            config.stt.language = document.getElementById('sttLanguage').value;
-            config.stt.whisper_model = document.getElementById('whisperModel')?.value;
-            
-            config.tts.mode = document.querySelector('#ttsSettings .mode-tab.active')?.dataset.mode || 'pyttsx3';
-            config.tts.voice = document.getElementById('ttsVoice').value;
-            
-            // 发送到服务器
-            try {
-                await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(config)
-                });
-                toggleSettings();
-                alert('设置已保存！');
-            } catch (e) {
-                alert('保存失败: ' + e.message);
-            }
-        }
-        
-        // 加载配置
-        async function loadConfig() {
-            try {
-                const res = await fetch('/api/config');
-                const data = await res.json();
-                
-                document.getElementById('llmModel').innerHTML = '';
-                data.llm.available_models?.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m;
-                    opt.textContent = m;
-                    if (m === data.llm.default_model) opt.selected = true;
-                    document.getElementById('llmModel').appendChild(opt);
-                });
-            } catch (e) {}
-        }
-        
-        loadConfig();
     </script>
 </body>
 </html>

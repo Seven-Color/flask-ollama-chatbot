@@ -114,4 +114,5 @@ if __name__ == '__main__':
 ==========================================
     """)
     
-    socketio.run(app, host=HOST, port=PORT, debug=True)
+    # 使用 127.0.0.1 确保本机可访问
+    socketio.run(app, host="127.0.0.1", port=PORT, debug=False)

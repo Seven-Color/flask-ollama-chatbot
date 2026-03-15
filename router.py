@@ -76,13 +76,33 @@ class Router:
         
         history = self.conversations[session_id]
         
-        # RAG: 检索记忆
+        # 智能 RAG: 先判断是否需要检索记忆
         memory_context = ""
-        if self.memory_service:
-            # 搜索相关记忆
-            memory_context = self.memory_service.search_memory(message)
+        memory_used = False
         
-        # 构建带有记忆的 system prompt
+        if self.memory_service:
+            # 让大模型判断是否需要检索记忆
+            check_prompt = f"""请判断以下用户问题是否需要了解用户的个人信息、生活习惯、兴趣爱好等记忆内容才能回答。
+
+用户问题: {message}
+
+请直接回答"需要"或"不需要"，不要有其他内容。"""
+            
+            # 用简短的历史进行判断
+            short_history = history[-4:] if len(history) > 4 else history
+            need_memory = self.llm_service.chat(
+                message=check_prompt,
+                history=short_history,
+                model=model,
+                system_prompt=""
+            ).strip()
+            
+            # 如果判断需要检索，则获取记忆
+            if '需要' in need_memory:
+                memory_context = self.memory_service.search_memory(message)
+                memory_used = bool(memory_context)
+        
+        # 构建 system prompt
         system_prompt = ""
         if memory_context:
             system_prompt = f"""你是一个智能助手。以下是用户的记忆信息，可以帮助你更好地理解和回答用户的问题：
@@ -107,7 +127,7 @@ class Router:
             return jsonify({
                 'response': response,
                 'session_id': session_id,
-                'memory_used': bool(memory_context)
+                'memory_used': memory_used
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -128,12 +148,28 @@ class Router:
         
         history = self.conversations[session_id]
         
-        # RAG: 检索记忆
+        # 智能 RAG: 先判断是否需要检索记忆
         memory_context = ""
         memory_used = False
         if self.memory_service:
-            memory_context = self.memory_service.search_memory(message)
-            memory_used = bool(memory_context)
+            # 让大模型判断是否需要检索记忆
+            check_prompt = f"""请判断以下用户问题是否需要了解用户的个人信息、生活习惯、兴趣爱好等记忆内容才能回答。
+
+用户问题: {message}
+
+请直接回答"需要"或"不需要"，不要有其他内容。"""
+            
+            short_history = history[-4:] if len(history) > 4 else history
+            need_memory = self.llm_service.chat(
+                message=check_prompt,
+                history=short_history,
+                model=model,
+                system_prompt=""
+            ).strip()
+            
+            if '需要' in need_memory:
+                memory_context = self.memory_service.search_memory(message)
+                memory_used = bool(memory_context)
         
         # 构建带有记忆的 system prompt
         system_prompt = ""

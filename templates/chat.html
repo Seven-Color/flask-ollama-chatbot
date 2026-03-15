@@ -148,6 +148,14 @@
         .btn-clear { background: rgba(255,255,255,0.1); color: #aaa; }
         .btn-clear:hover { background: rgba(255,255,255,0.2); color: #fff; }
         
+        .btn-capsule { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-capsule:hover { background: rgba(255,255,255,0.2); }
+        .btn-capsule.active { background: #e67e22; }
+        
+        .btn-summarize { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-summarize:hover { background: rgba(255,255,255,0.2); }
+        .btn-summarize.summoning { background: #9b59b6; }
+        
         .btn-tts { background: rgba(255,255,255,0.1); color: #fff; }
         .btn-tts:hover { background: rgba(255,255,255,0.2); }
         .btn-tts.on { background: #27ae60; }
@@ -240,6 +248,8 @@
             <div class="controls">
                 <button class="btn btn-voice" id="voiceBtn">🎤</button>
                 <button class="btn btn-tts" id="ttsBtn">🔊</button>
+                <button class="btn btn-capsule" id="capsuleBtn" title="添加到记忆胶囊">💾</button>
+                <button class="btn btn-summarize" id="summarizeBtn" title="总结胶囊">📝</button>
                 <button class="btn btn-send" id="sendBtn">发送</button>
                 <button class="btn btn-clear" id="clearBtn">🗑️</button>
             </div>
@@ -274,6 +284,8 @@
         const clearBtn = document.getElementById('clearBtn');
         const voiceBtn = document.getElementById('voiceBtn');
         const ttsBtn = document.getElementById('ttsBtn');
+        const capsuleBtn = document.getElementById('capsuleBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
         const statusDiv = document.getElementById('status');
         const voiceModal = document.getElementById('voiceModal');
         const voiceResult = document.getElementById('voiceResult');
@@ -351,6 +363,62 @@
         
         // 事件
         sendBtn.addEventListener('click', sendMessage);
+        
+        // 语音胶囊按钮 - 添加到记忆胶囊
+        capsuleBtn.addEventListener('click', async () => {
+            const message = messageInput.value.trim();
+            if (!message) {
+                statusDiv.textContent = '请先输入内容';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/memory?action=add', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: message})
+                });
+                const data = await res.json();
+                
+                if (data.status === 'added') {
+                    capsuleBtn.classList.add('active');
+                    statusDiv.textContent = `已添加到胶囊 (${data.capsule_size})`;
+                    
+                    // 3秒后恢复按钮状态
+                    setTimeout(() => {
+                        capsuleBtn.classList.remove('active');
+                    }, 3000);
+                }
+            } catch (e) {
+                statusDiv.textContent = '添加失败: ' + e.message;
+            }
+        });
+        
+        // 总结胶囊按钮 - 触发 LLM 总结
+        summarizeBtn.addEventListener('click', async () => {
+            summarizeBtn.classList.add('summoning');
+            statusDiv.textContent = '正在总结胶囊...';
+            
+            try {
+                const res = await fetch('/api/memory?action=summarize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                
+                if (data.summary) {
+                    statusDiv.textContent = '胶囊已总结并保存';
+                    capsuleBtn.classList.remove('active');
+                } else {
+                    statusDiv.textContent = '胶囊为空，无需总结';
+                }
+            } catch (e) {
+                statusDiv.textContent = '总结失败: ' + e.message;
+            } finally {
+                summarizeBtn.classList.remove('summoning');
+            }
+        });
         
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

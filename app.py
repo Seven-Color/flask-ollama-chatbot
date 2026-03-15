@@ -20,8 +20,8 @@ config = Config()
 
 # 从配置获取
 SECRET_KEY = "ollama-chat-secret-key"
-HOST = config.get('llm', {}).get('host', '0.0.0.0')
-PORT = config.get('llm', {}).get('port', 8000)
+HOST = "127.0.0.1"
+PORT = 8000
 
 # 创建 Flask 应用
 app = Flask(__name__)

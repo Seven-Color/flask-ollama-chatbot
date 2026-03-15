@@ -5,7 +5,7 @@ LLM Service - 大语言模型服务
 
 import requests
 import json
-from typing import List, Dict, Any, Optional, Generator
+from typing import List, Dict, Any, Optional, Iterator
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -218,7 +218,7 @@ class LLMService:
             return f"Error: {str(e)}"
     
     def chat_stream(self, message: str, history: List[Dict] = None,
-                    model: Optional[str] = None) -> Generator[str, None]:
+                    model: Optional[str] = None) -> Iterator[str]:
         """
         聊天（流式）- 使用 LangChain 接口
         """

@@ -76,12 +76,28 @@ class Router:
         
         history = self.conversations[session_id]
         
+        # RAG: 检索记忆
+        memory_context = ""
+        if self.memory_service:
+            # 搜索相关记忆
+            memory_context = self.memory_service.search_memory(message)
+        
+        # 构建带有记忆的 system prompt
+        system_prompt = ""
+        if memory_context:
+            system_prompt = f"""你是一个智能助手。以下是用户的记忆信息，可以帮助你更好地理解和回答用户的问题：
+
+{memory_context}
+
+请根据以上记忆信息，结合当前对话内容回答用户的问题。"""
+        
         # 调用 LLM 服务
         try:
             response = self.llm_service.chat(
                 message=message,
                 history=history,
-                model=model
+                model=model,
+                system_prompt=system_prompt
             )
             
             # 更新历史
@@ -90,7 +106,8 @@ class Router:
             
             return jsonify({
                 'response': response,
-                'session_id': session_id
+                'session_id': session_id,
+                'memory_used': bool(memory_context)
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -111,15 +128,32 @@ class Router:
         
         history = self.conversations[session_id]
         
+        # RAG: 检索记忆
+        memory_context = ""
+        memory_used = False
+        if self.memory_service:
+            memory_context = self.memory_service.search_memory(message)
+            memory_used = bool(memory_context)
+        
+        # 构建带有记忆的 system prompt
+        system_prompt = ""
+        if memory_context:
+            system_prompt = f"""你是一个智能助手。以下是用户的记忆信息，可以帮助你更好地理解和回答用户的问题：
+
+{memory_context}
+
+请根据以上记忆信息，结合当前对话内容回答用户的问题。"""
+        
         def generate():
+            nonlocal memory_used
             full_response = ""
-            for token in self.llm_service.chat_stream(message, history, model):
+            for token in self.llm_service.chat_stream(message, history, model, system_prompt):
                 full_response += token
                 yield f"data: {json.dumps({'token': token})}\n\n"
             
             history.append({'role': 'user', 'content': message})
             history.append({'role': 'assistant', 'content': full_response})
-            yield f"data: {json.dumps({'done': True})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'memory_used': memory_used})}\n\n"
         
         return Response(generate(), mimetype='text/event-stream')
     

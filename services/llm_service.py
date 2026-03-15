@@ -54,7 +54,7 @@ class LLMService:
         return [self.default_model]
     
     def chat(self, message: str, history: List[Dict] = None, 
-             model: Optional[str] = None) -> str:
+             model: Optional[str] = None, system_prompt: str = "") -> str:
         """
         聊天（同步）- 使用 LangChain Ollama
         """
@@ -69,7 +69,7 @@ class LLMService:
             )
         
         # 构建消息
-        messages = self._build_langchain_messages(message, history)
+        messages = self._build_langchain_messages(message, history, system_prompt)
         
         # 调用 LangChain Ollama
         try:
@@ -79,7 +79,7 @@ class LLMService:
             return f"Error: {str(e)}"
     
     def chat_stream(self, message: str, history: List[Dict] = None,
-                    model: Optional[str] = None) -> Iterator[str]:
+                    model: Optional[str] = None, system_prompt: str = "") -> Iterator[str]:
         """
         聊天（流式）- 使用 LangChain Ollama
         """
@@ -94,7 +94,7 @@ class LLMService:
             )
         
         # 构建消息
-        messages = self._build_langchain_messages(message, history)
+        messages = self._build_langchain_messages(message, history, system_prompt)
         
         # 流式调用 LangChain Ollama
         try:
@@ -112,13 +112,14 @@ class LLMService:
         except Exception as e:
             yield f"Error: {str(e)}"
     
-    def _build_langchain_messages(self, message: str, history: List[Dict] = None) -> List:
+    def _build_langchain_messages(self, message: str, history: List[Dict] = None, system_prompt: str = "") -> List:
         """构建 LangChain 消息列表"""
         messages = []
         
-        # 添加系统提示
-        if self.system_prompt:
-            messages.append(SystemMessage(content=self.system_prompt))
+        # 添加系统提示（优先使用传入的 system_prompt）
+        prompt = system_prompt or self.system_prompt
+        if prompt:
+            messages.append(SystemMessage(content=prompt))
         
         # 添加历史消息
         if history:

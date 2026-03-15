@@ -5,7 +5,7 @@ LLM Service - 大语言模型服务
 
 import requests
 import json
-from typing import List, Dict, Any, Optional, Iterator
+from typing import List, Dict, Any, Optional, Iterator, Generator
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, AIMessageChunk, SystemMessage
 from langchain_core.outputs import ChatGenerationChunk, ChatGeneration, ChatResult

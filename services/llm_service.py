@@ -1,19 +1,17 @@
 """
 LLM Service - 大语言模型服务
-使用 LangChain 调用 Ollama
+使用原生 Ollama API (兼容 LangChain 接口)
 """
 
+import requests
+import json
 from typing import List, Dict, Any, Optional, Generator
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
 class LLMService:
     """
     大语言模型服务
-    使用 LangChain 调用 Ollama
+    使用原生 Ollama API，兼容 LangChain 接口
     """
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -26,33 +24,18 @@ class LLMService:
         self.max_tokens = self.config.get('max_tokens', 2048)
         self.system_prompt = self.config.get('system_prompt', '')
         
-        # 初始化 LangChain ChatOllama
-        self._chat_model = None
-        self._init_model()
-        
-        # 对话历史 (每个 session_id 对应一个 ChatMessageHistory)
-        self._message_histories: Dict[str, ChatMessageHistory] = {}
+        # 对话历史 (每个 session_id 对应一个消息列表)
+        self._message_histories: Dict[str, List[Dict]] = {}
     
-    def _init_model(self):
-        """初始化 LangChain ChatOllama 模型"""
-        self._chat_model = ChatOllama(
-            model=self.default_model,
-            base_url=self.base_url,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            num_ctx=self.max_tokens,
-        )
-    
-    def _get_history(self, session_id: str) -> ChatMessageHistory:
+    def _get_history(self, session_id: str) -> List[Dict]:
         """获取或创建会话历史"""
         if session_id not in self._message_histories:
-            self._message_histories[session_id] = ChatMessageHistory()
+            self._message_histories[session_id] = []
         return self._message_histories[session_id]
     
     def get_available_models(self) -> List[str]:
-        """获取可用模型列表（通过 Ollama API）"""
+        """获取可用模型列表"""
         try:
-            import requests
             response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 models = response.json().get('models', [])
@@ -61,73 +44,91 @@ class LLMService:
             print(f"获取模型列表失败: {e}")
         return [self.default_model]
     
-    def chat(self, message: str, history: List[Dict] = None, 
-             model: Optional[str] = None) -> str:
-        """
-        聊天（同步）- 使用 LangChain
-        """
-        model = model or self.default_model
-        
-        # 如果指定了不同模型，需要重新初始化
-        if model != self.default_model:
-            self.default_model = model
-            self._init_model()
-        
-        # 构建消息列表
-        messages = self._build_messages(message, history)
-        
-        # 调用 LangChain
-        try:
-            response = self._chat_model.invoke(messages)
-            return response.content
-        except Exception as e:
-            return f"Error: {str(e)}"
-    
-    def chat_stream(self, message: str, history: List[Dict] = None,
-                    model: Optional[str] = None) -> Generator[str, None]:
-        """
-        聊天（流式）- 使用 LangChain
-        """
-        model = model or self.default_model
-        
-        # 如果指定了不同模型，需要重新初始化
-        if model != self.default_model:
-            self.default_model = model
-            self._init_model()
-        
-        # 构建消息列表
-        messages = self._build_messages(message, history)
-        
-        # 流式调用 LangChain
-        try:
-            for chunk in self._chat_model.stream(messages):
-                if chunk.content:
-                    yield chunk.content
-        except Exception as e:
-            yield f"Error: {str(e)}"
-    
-    def _build_messages(self, message: str, history: List[Dict] = None) -> List:
-        """构建 LangChain 消息列表"""
+    def _build_messages(self, message: str, history: List[Dict] = None) -> List[Dict]:
+        """构建 Ollama 消息格式"""
         messages = []
         
         # 添加系统提示
         if self.system_prompt:
-            messages.append(SystemMessage(content=self.system_prompt))
+            messages.append({"role": "system", "content": self.system_prompt})
         
         # 添加历史消息
         if history:
             for h in history:
                 role = h.get('role', 'user')
                 content = h.get('content', '')
-                if role == 'user':
-                    messages.append(HumanMessage(content=content))
-                elif role == 'assistant':
-                    messages.append(AIMessage(content=content))
+                if role in ['user', 'assistant', 'system']:
+                    messages.append({"role": role, "content": content})
         
         # 添加当前消息
-        messages.append(HumanMessage(content=message))
+        messages.append({"role": "user", "content": message})
         
         return messages
+    
+    def chat(self, message: str, history: List[Dict] = None, 
+             model: Optional[str] = None) -> str:
+        """
+        聊天（同步）
+        """
+        model = model or self.default_model
+        messages = self._build_messages(message, history)
+        
+        url = f"{self.base_url}/api/chat"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "num_ctx": self.max_tokens
+            }
+        }
+        
+        try:
+            response = requests.post(url, json=payload, timeout=120)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("message", {}).get("content", "")
+        except Exception as e:
+            return f"Error: {str(e)}"
+    
+    def chat_stream(self, message: str, history: List[Dict] = None,
+                    model: Optional[str] = None) -> Generator[str, None]:
+        """
+        聊天（流式）
+        """
+        model = model or self.default_model
+        messages = self._build_messages(message, history)
+        
+        url = f"{self.base_url}/api/chat"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "num_ctx": self.max_tokens
+            }
+        }
+        
+        try:
+            response = requests.post(url, json=payload, stream=True, timeout=120)
+            response.raise_for_status()
+            
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        data = json.loads(line)
+                        if "message" in data:
+                            token = data["message"].get("content", "")
+                            if token:
+                                yield token
+                    except:
+                        continue
+        except Exception as e:
+            yield f"Error: {str(e)}"
     
     def get_config(self) -> Dict[str, Any]:
         """获取配置"""
@@ -147,15 +148,11 @@ class LLMService:
             self.base_url = config['base_url']
         if 'default_model' in config:
             self.default_model = config['default_model']
-            self._init_model()
         if 'temperature' in config:
             self.temperature = config['temperature']
-            self._init_model()
         if 'top_p' in config:
             self.top_p = config['top_p']
-            self._init_model()
         if 'max_tokens' in config:
             self.max_tokens = config['max_tokens']
-            self._init_model()
         if 'system_prompt' in config:
             self.system_prompt = config['system_prompt']

@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Ollama 配置
 OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_MODEL = "qwen3"
+DEFAULT_MODEL = "qwen3:0.6b"
 
 # Flask 配置
 SECRET_KEY = "ollama-chat-secret-key"

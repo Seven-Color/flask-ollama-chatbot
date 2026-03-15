@@ -54,8 +54,12 @@ class STTService:
         """使用 Whisper 转写"""
         self._init_whisper()
         
+        # 获取临时目录（兼容 Windows）
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, 'stt_input.wav')
+        
         # 保存临时文件
-        temp_path = "/tmp/stt_input.wav"
         audio_file.save(temp_path)
         
         try:

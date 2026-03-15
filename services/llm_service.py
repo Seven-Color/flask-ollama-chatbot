@@ -3,181 +3,131 @@ LLM Service - 大语言模型服务
 使用 LangChain 调用 Ollama
 """
 
-import requests
 from typing import List, Dict, Any, Optional, Generator
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
 class LLMService:
     """
     大语言模型服务
-    支持：Ollama, LangChain 封装
+    使用 LangChain 调用 Ollama
     """
     
     def __init__(self, config: Dict[str, Any] = None):
         # 默认配置
         self.config = config or {}
         self.base_url = self.config.get('base_url', 'http://localhost:11434')
-        self.default_model = self.config.get('default_model', 'llama2')
+        self.default_model = self.config.get('default_model', 'qwen3')
         self.temperature = self.config.get('temperature', 0.7)
         self.top_p = self.config.get('top_p', 0.9)
         self.max_tokens = self.config.get('max_tokens', 2048)
         self.system_prompt = self.config.get('system_prompt', '')
         
-        # LangChain 相关（可选）
-        self.use_langchain = self.config.get('use_langchain', False)
+        # 初始化 LangChain ChatOllama
+        self._chat_model = None
+        self._init_model()
         
-        # 尝试初始化 LangChain
-        self._langchain_model = None
-        if self.use_langchain:
-            self._init_langchain()
+        # 对话历史 (每个 session_id 对应一个 ChatMessageHistory)
+        self._message_histories: Dict[str, ChatMessageHistory] = {}
     
-    def _init_langchain(self):
-        """初始化 LangChain"""
-        try:
-            from langchain_community.llms import Ollama
-            from langchain_core.prompts import PromptTemplate
-            from langchain_community.chat_message_histories import ChatMessageHistory
-            
-            self._langchain_model = Ollama(
-                model=self.default_model,
-                base_url=self.base_url,
-                temperature=self.temperature,
-                top_p=self.top_p,
-                num_ctx=self.max_tokens
-            )
-            
-            # 记忆模板
-            self.prompt = PromptTemplate(
-                input_variables=["history", "input"],
-                template=self.system_prompt + "\n\n历史记录:\n{history}\n\n用户: {input}\n助手:"
-            )
-            
-            # 对话记忆
-            self.memory = ChatMessageHistory()
-            
-        except ImportError:
-            print("LangChain 未安装，将使用原生 API")
-            self.use_langchain = False
+    def _init_model(self):
+        """初始化 LangChain ChatOllama 模型"""
+        self._chat_model = ChatOllama(
+            model=self.default_model,
+            base_url=self.base_url,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            num_ctx=self.max_tokens,
+        )
+    
+    def _get_history(self, session_id: str) -> ChatMessageHistory:
+        """获取或创建会话历史"""
+        if session_id not in self._message_histories:
+            self._message_histories[session_id] = ChatMessageHistory()
+        return self._message_histories[session_id]
     
     def get_available_models(self) -> List[str]:
-        """获取可用模型列表"""
+        """获取可用模型列表（通过 Ollama API）"""
         try:
+            import requests
             response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 models = response.json().get('models', [])
                 return [m['name'] for m in models]
-        except:
-            pass
+        except Exception as e:
+            print(f"获取模型列表失败: {e}")
         return [self.default_model]
     
     def chat(self, message: str, history: List[Dict] = None, 
              model: Optional[str] = None) -> str:
         """
-        聊天（同步）
+        聊天（同步）- 使用 LangChain
         """
         model = model or self.default_model
-        history = history or []
         
-        if self.use_langchain and self._langchain_model:
-            return self._chat_langchain(message, history, model)
-        else:
-            return self._chat_native(message, history, model)
-    
-    def _chat_langchain(self, message: str, history: List[Dict], model: str) -> str:
-        """使用 LangChain 聊天"""
-        # 构建历史字符串
-        history_text = ""
-        for h in history[-10:]:  # 限制历史长度
-            role = h.get('role', 'user')
-            content = h.get('content', '')
-            history_text += f"{role}: {content}\n"
+        # 如果指定了不同模型，需要重新初始化
+        if model != self.default_model:
+            self.default_model = model
+            self._init_model()
         
-        # 调用
-        prompt = self.prompt.format(history=history_text, input=message)
-        response = self._langchain_model.invoke(prompt)
+        # 构建消息列表
+        messages = self._build_messages(message, history)
         
-        return response
-    
-    def _chat_native(self, message: str, history: List[Dict], model: str) -> str:
-        """使用原生 API 聊天"""
-        url = f"{self.base_url}/api/chat"
-        
-        # 构建消息
-        messages = []
-        if self.system_prompt:
-            messages.append({"role": "system", "content": self.system_prompt})
-        
-        for h in history:
-            messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
-        
-        messages.append({"role": "user", "content": message})
-        
-        payload = {
-            "model": model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-                "num_ctx": self.max_tokens
-            }
-        }
-        
+        # 调用 LangChain
         try:
-            response = requests.post(url, json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("message", {}).get("content", "")
+            response = self._chat_model.invoke(messages)
+            return response.content
         except Exception as e:
             return f"Error: {str(e)}"
     
     def chat_stream(self, message: str, history: List[Dict] = None,
-                    model: Optional[str] = None) -> Generator[str, None, None]:
+                    model: Optional[str] = None) -> Generator[str, None]:
         """
-        聊天（流式）
+        聊天（流式）- 使用 LangChain
         """
         model = model or self.default_model
-        history = history or []
         
-        url = f"{self.base_url}/api/chat"
+        # 如果指定了不同模型，需要重新初始化
+        if model != self.default_model:
+            self.default_model = model
+            self._init_model()
         
-        # 构建消息
-        messages = []
-        if self.system_prompt:
-            messages.append({"role": "system", "content": self.system_prompt})
+        # 构建消息列表
+        messages = self._build_messages(message, history)
         
-        for h in history:
-            messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
-        
-        messages.append({"role": "user", "content": message})
-        
-        payload = {
-            "model": model,
-            "messages": messages,
-            "stream": True,
-            "options": {
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-                "num_ctx": self.max_tokens
-            }
-        }
-        
+        # 流式调用 LangChain
         try:
-            response = requests.post(url, json=payload, stream=True, timeout=120)
-            response.raise_for_status()
-            
-            for line in response.iter_lines():
-                if line:
-                    try:
-                        data = json.loads(line)
-                        if "message" in data:
-                            token = data["message"].get("content", "")
-                            if token:
-                                yield token
-                    except:
-                        continue
+            for chunk in self._chat_model.stream(messages):
+                if chunk.content:
+                    yield chunk.content
         except Exception as e:
             yield f"Error: {str(e)}"
+    
+    def _build_messages(self, message: str, history: List[Dict] = None) -> List:
+        """构建 LangChain 消息列表"""
+        messages = []
+        
+        # 添加系统提示
+        if self.system_prompt:
+            messages.append(SystemMessage(content=self.system_prompt))
+        
+        # 添加历史消息
+        if history:
+            for h in history:
+                role = h.get('role', 'user')
+                content = h.get('content', '')
+                if role == 'user':
+                    messages.append(HumanMessage(content=content))
+                elif role == 'assistant':
+                    messages.append(AIMessage(content=content))
+        
+        # 添加当前消息
+        messages.append(HumanMessage(content=message))
+        
+        return messages
     
     def get_config(self) -> Dict[str, Any]:
         """获取配置"""
@@ -188,7 +138,6 @@ class LLMService:
             'top_p': self.top_p,
             'max_tokens': self.max_tokens,
             'system_prompt': self.system_prompt,
-            'use_langchain': self.use_langchain,
             'available_models': self.get_available_models()
         }
     
@@ -198,15 +147,15 @@ class LLMService:
             self.base_url = config['base_url']
         if 'default_model' in config:
             self.default_model = config['default_model']
+            self._init_model()
         if 'temperature' in config:
             self.temperature = config['temperature']
+            self._init_model()
         if 'top_p' in config:
             self.top_p = config['top_p']
+            self._init_model()
         if 'max_tokens' in config:
             self.max_tokens = config['max_tokens']
+            self._init_model()
         if 'system_prompt' in config:
             self.system_prompt = config['system_prompt']
-        if 'use_langchain' in config:
-            self.use_langchain = config['use_langchain']
-            if self.use_langchain:
-                self._init_langchain()

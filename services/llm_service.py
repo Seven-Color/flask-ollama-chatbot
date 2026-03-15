@@ -35,8 +35,8 @@ class LLMService:
         """初始化 LangChain"""
         try:
             from langchain_community.llms import Ollama
-            from langchain.prompts import PromptTemplate
-            from langchain.memory import ConversationBufferMemory
+            from langchain_core.prompts import PromptTemplate
+            from langchain_community.chat_message_histories import ChatMessageHistory
             
             self._langchain_model = Ollama(
                 model=self.default_model,
@@ -53,11 +53,7 @@ class LLMService:
             )
             
             # 对话记忆
-            self.memory = ConversationBufferMemory(
-                input_key="input",
-                output_key="output",
-                memory_key="history"
-            )
+            self.memory = ChatMessageHistory()
             
         except ImportError:
             print("LangChain 未安装，将使用原生 API")

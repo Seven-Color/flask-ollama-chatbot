@@ -8,26 +8,26 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, render_template
-
-# 配置
-SECRET_KEY = "ollama-chat-secret-key"
-HOST = "127.0.0.1"
-PORT = 6000
-OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_MODEL = "llama2"
+from flask import Flask
 
 # 导入模块
 from services import LLMService, STTService, TTSService
 from router import Router
 from config import Config
 
+# 加载配置
+config = Config()
+
+# 从配置获取
+SECRET_KEY = "ollama-chat-secret-key"
+HOST = config.get('llm', {}).get('host', '0.0.0.0')
+PORT = config.get('llm', {}).get('port', 8000)
+
 # 创建 Flask 应用
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# 初始化配置
-config = Config()
+# 初始化服务配置
 llm_config = config.get('llm', {})
 stt_config = config.get('stt', {})
 tts_config = config.get('tts', {})

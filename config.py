@@ -10,12 +10,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Ollama 配置
 OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_MODEL = "llama2"
+DEFAULT_MODEL = "qwen3"
 
 # Flask 配置
 SECRET_KEY = "ollama-chat-secret-key"
-HOST = "127.0.0.1"
-PORT = 6000
+HOST = "0.0.0.0"
+PORT = 8000
 
 # 对话历史
 MAX_HISTORY = 20
@@ -38,7 +38,9 @@ class Config:
                 'top_p': 0.9,
                 'max_tokens': 2048,
                 'system_prompt': '',
-                'use_langchain': False
+                'use_langchain': False,
+                'host': HOST,
+                'port': PORT
             },
             'stt': {
                 'provider': 'webspeech',  # webspeech, whisper

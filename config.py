@@ -43,8 +43,10 @@ class Config:
                 'port': PORT
             },
             'stt': {
-                'provider': 'webspeech',  # webspeech, whisper
-                'language': 'zh-CN'
+                'mode': 'whisper',  # websocket, whisper
+                'language': 'zh',
+                'whisper_model': 'base',  # tiny, base, small, medium, large
+                'whisper_device': 'cpu'
             },
             'tts': {
                 'provider': 'browser',  # browser, elevenlabs

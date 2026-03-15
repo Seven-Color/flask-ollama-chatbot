@@ -143,6 +143,8 @@
         
         .btn-voice.recording { background: #e74c3c; }
         
+        .btn-voice.whisper-mode { background: #3498db; }
+        
         .btn-clear { background: rgba(255,255,255,0.1); color: #aaa; }
         .btn-clear:hover { background: rgba(255,255,255,0.2); color: #fff; }
         
@@ -261,7 +263,10 @@
         let isRecording = false;
         let recognition = null;
         let isSpeaking = false;
-        let ttsEnabled = false; // TTS 开关
+        let ttsEnabled = false;
+        let whisperMode = false; // Whisper 离线模式
+        let mediaRecorder = null;
+        let audioChunks = [];
         
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
@@ -369,48 +374,126 @@
             }
         });
         
-        // 语音输入
-        voiceBtn.addEventListener('click', () => {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert('请使用 Chrome 浏览器');
-                return;
+        // 语音输入 - 支持 Whisper 离线模式
+        voiceBtn.addEventListener('click', async () => {
+            // 切换 Whisper 模式
+            whisperMode = !whisperMode;
+            voiceBtn.classList.toggle('whisper-mode', whisperMode);
+            
+            if (whisperMode) {
+                statusDiv.textContent = 'Whisper 模式 - 点击录音';
+                
+                if (isRecording) {
+                    // 停止录音
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    voiceBtn.classList.remove('recording');
+                } else {
+                    // 开始录音
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        mediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+                        
+                        mediaRecorder.ondataavailable = (e) => {
+                            audioChunks.push(e.data);
+                        };
+                        
+                        mediaRecorder.onstop = async () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                            const formData = new FormData();
+                            formData.append('audio', audioBlob, 'recording.wav');
+                            
+                            voiceModal.classList.remove('active');
+                            statusDiv.textContent = '正在识别...';
+                            
+                            try {
+                                const res = await fetch('/api/stt', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                const data = await res.json();
+                                if (data.text) {
+                                    messageInput.value = data.text;
+                                    statusDiv.textContent = '识别完成';
+                                } else {
+                                    statusDiv.textContent = '识别失败: ' + (data.error || '未知错误');
+                                }
+                            } catch (e) {
+                                statusDiv.textContent = '识别错误: ' + e.message;
+                            }
+                            
+                            // 停止所有轨道
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+                        
+                        mediaRecorder.start();
+                        isRecording = true;
+                        voiceBtn.classList.add('recording');
+                        voiceModal.classList.add('active');
+                        voiceResult.textContent = '正在录音...（点击停止）';
+                        
+                    } catch (e) {
+                        alert('无法访问麦克风: ' + e.message);
+                        whisperMode = false;
+                        voiceBtn.classList.remove('whisper-mode');
+                    }
+                }
+            } else {
+                // Web Speech API 模式
+                if (isRecording && mediaRecorder) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    voiceBtn.classList.remove('recording');
+                }
+                
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    alert('请使用 Chrome 浏览器');
+                    return;
+                }
+                
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                
+                recognition.onstart = () => {
+                    voiceBtn.classList.add('recording');
+                    voiceModal.classList.add('active');
+                    voiceResult.textContent = '正在聆听...';
+                };
+                
+                recognition.onresult = (event) => {
+                    let final = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) final += event.results[i][0].transcript;
+                    }
+                    if (final) {
+                        voiceResult.textContent = final;
+                        messageInput.value = final;
+                    }
+                };
+                
+                recognition.onerror = (e) => {
+                    voiceBtn.classList.remove('recording');
+                    voiceModal.classList.remove('active');
+                    voiceResult.textContent = '识别错误: ' + e.error;
+                };
+                
+                recognition.onend = () => voiceBtn.classList.remove('recording');
+                recognition.start();
             }
-            
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'zh-CN';
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            
-            recognition.onstart = () => {
-                voiceBtn.classList.add('recording');
-                voiceModal.classList.add('active');
-                voiceResult.textContent = '正在聆听...';
-            };
-            
-            recognition.onresult = (event) => {
-                let final = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) final += event.results[i][0].transcript;
-                }
-                if (final) {
-                    voiceResult.textContent = final;
-                    messageInput.value = final;
-                }
-            };
-            
-            recognition.onerror = (e) => {
-                voiceBtn.classList.remove('recording');
-                voiceModal.classList.remove('active');
-                voiceResult.textContent = '识别错误: ' + e.error;
-            };
-            
-            recognition.onend = () => voiceBtn.classList.remove('recording');
-            recognition.start();
         });
         
         stopVoiceBtn.addEventListener('click', () => {
-            if (recognition) recognition.stop();
+            if (whisperMode && mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                voiceBtn.classList.remove('recording');
+            } else if (recognition) {
+                recognition.stop();
+            }
             voiceModal.classList.remove('active');
         });
         

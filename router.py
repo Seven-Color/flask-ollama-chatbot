@@ -13,11 +13,12 @@ class Router:
     路由器 - 协调各服务模块
     """
     
-    def __init__(self, app, llm_service, stt_service, tts_service):
+    def __init__(self, app, llm_service, stt_service, tts_service, memory_service=None):
         self.app = app
         self.llm_service = llm_service
         self.stt_service = stt_service
         self.tts_service = tts_service
+        self.memory_service = memory_service
         self.conversations: Dict[str, list] = {}
         
         self._register_routes()
@@ -42,6 +43,10 @@ class Router:
         
         # 模型
         self.app.add_url_rule('/api/models', 'get_models', self._get_models, methods=['GET'])
+        
+        # 记忆相关路由
+        if self.memory_service:
+            self.app.add_url_rule('/api/memory', 'memory', self._handle_memory, methods=['GET', 'POST'])
         
         # 路由页面
         self.app.add_url_rule('/', 'index', self._index)
@@ -176,3 +181,35 @@ class Router:
             self.tts_service.update_config(data['tts'])
         
         return jsonify({'status': 'updated'})
+    
+    def _handle_memory(self):
+        """记忆相关操作"""
+        if not self.memory_service:
+            return jsonify({'error': 'Memory service not configured'}), 500
+        
+        action = request.args.get('action', 'search')
+        
+        if action == 'search':
+            # 搜索记忆
+            query = request.args.get('query', '')
+            memory_content = self.memory_service.search_memory(query)
+            return jsonify({'memory': memory_content})
+        
+        elif action == 'summary':
+            # 获取记忆摘要
+            summary = self.memory_service.get_memory_summary()
+            return jsonify({'summary': summary})
+        
+        elif action == 'add':
+            # 添加到胶囊
+            data = request.json
+            text = data.get('text', '')
+            self.memory_service.add_to_capsule(text)
+            return jsonify({'status': 'added', 'capsule_size': len(self.memory_service.current_capsule['content'])})
+        
+        elif action == 'summarize':
+            # 总结胶囊
+            summary = self.memory_service.summarize_capsule(self.llm_service)
+            return jsonify({'summary': summary})
+        
+        return jsonify({'error': 'Unknown action'}), 400

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from flask import Flask
 
 # 导入模块
-from services import LLMService, STTService, TTSService
+from services import LLMService, STTService, TTSService, MemoryService
 from router import Router
 from config import Config
 
@@ -40,9 +40,10 @@ tts_config = config.get('tts', {})
 llm_service = LLMService(llm_config)
 stt_service = STTService(stt_config)
 tts_service = TTSService(tts_config)
+memory_service = MemoryService()
 
 # 初始化 Router 并注册路由
-router = Router(app, llm_service, stt_service, tts_service)
+router = Router(app, llm_service, stt_service, tts_service, memory_service)
 
 # ==================== 主程序 ====================
 

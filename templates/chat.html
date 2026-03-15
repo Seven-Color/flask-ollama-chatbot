@@ -148,7 +148,7 @@
         
         .btn-tts { background: rgba(255,255,255,0.1); color: #fff; }
         .btn-tts:hover { background: rgba(255,255,255,0.2); }
-        .btn-tts.speaking { background: #27ae60; }
+        .btn-tts.on { background: #27ae60; }
         
         .controls { display: flex; gap: 8px; }
         
@@ -261,6 +261,7 @@
         let isRecording = false;
         let recognition = null;
         let isSpeaking = false;
+        let ttsEnabled = false; // TTS 开关
         
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
@@ -316,6 +317,11 @@
                     }
                 }
                 statusDiv.textContent = '就绪';
+                
+                // 如果 TTS 开启，自动播放回复
+                if (ttsEnabled) {
+                    speakText(contentDiv.textContent);
+                }
             } catch (e) {
                 contentDiv.textContent = '错误: ' + e.message;
                 statusDiv.textContent = '错误';
@@ -408,12 +414,26 @@
             voiceModal.classList.remove('active');
         });
         
-        // 语音输出
+        // 语音输出 - 开关模式
         ttsBtn.addEventListener('click', () => {
-            const lastMsg = messagesDiv.querySelector('.message.assistant:last-child .message-content');
-            if (!lastMsg) return;
+            // 切换开关状态
+            ttsEnabled = !ttsEnabled;
+            ttsBtn.classList.toggle('on', ttsEnabled);
             
-            const text = lastMsg.textContent;
+            if (ttsEnabled) {
+                statusDiv.textContent = 'TTS 已开启 - 自动播放';
+            } else {
+                // 关闭时，播放当前对话
+                const lastMsg = messagesDiv.querySelector('.message.assistant:last-child .message-content');
+                if (lastMsg && !lastMsg.textContent.includes('正在思考')) {
+                    speakText(lastMsg.textContent);
+                }
+                statusDiv.textContent = 'TTS 已关闭';
+            }
+        });
+        
+        // 语音播放函数
+        function speakText(text) {
             if (!text || text.includes('正在思考')) return;
             
             if (isSpeaking) {
@@ -438,7 +458,7 @@
             };
             
             speechSynthesis.speak(utterance);
-        });
+        }
     </script>
 </body>
 </html>

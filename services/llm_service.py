@@ -7,8 +7,8 @@ import requests
 import json
 from typing import List, Dict, Any, Optional, Iterator
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, AIMessageChunk, SystemMessage
+from langchain_core.outputs import ChatGenerationChunk, ChatGeneration, ChatResult
 from langchain_core.callbacks import CallbackManagerForLLMRun
 
 
@@ -104,7 +104,7 @@ class OllamaChat(BaseChatModel):
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> Generator[ChatGeneration, None, None]:
+    ) -> Generator[ChatGenerationChunk, None, None]:
         """流式生成"""
         ollama_messages = self._build_messages(messages)
         
@@ -124,7 +124,6 @@ class OllamaChat(BaseChatModel):
             response = requests.post(url, json=payload, stream=True, timeout=120)
             response.raise_for_status()
             
-            full_content = ""
             for line in response.iter_lines():
                 if line:
                     try:
@@ -132,16 +131,15 @@ class OllamaChat(BaseChatModel):
                         if "message" in data:
                             token = data["message"].get("content", "")
                             if token:
-                                full_content += token
-                                yield ChatGeneration(
-                                    message=AIMessage(content=token)
+                                yield ChatGenerationChunk(
+                                    message=AIMessageChunk(content=token)
                                 )
                     except:
                         continue
                         
         except Exception as e:
-            yield ChatGeneration(
-                message=AIMessage(content=f"Error: {str(e)}")
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(content=f"Error: {str(e)}")
             )
 
 
@@ -239,8 +237,13 @@ class LLMService:
         # 流式调用 LangChain 接口
         try:
             for chunk in self._chat_model.stream(messages):
-                if chunk.message.content:
-                    yield chunk.message.content
+                # 处理流式返回的不同格式
+                if hasattr(chunk, 'content'):
+                    content = chunk.content
+                else:
+                    content = str(chunk)
+                if content:
+                    yield content
         except Exception as e:
             yield f"Error: {str(e)}"
     

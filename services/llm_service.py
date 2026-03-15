@@ -1,152 +1,22 @@
 """
 LLM Service - 大语言模型服务
-使用 LangChain 兼容接口调用 Ollama
+使用 LangChain Ollama 封装调用 Ollama
 """
 
-import requests
-import json
-from typing import List, Dict, Any, Optional, Iterator, Generator
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, AIMessageChunk, SystemMessage
-from langchain_core.outputs import ChatGenerationChunk, ChatGeneration, ChatResult
-from langchain_core.callbacks import CallbackManagerForLLMRun
+import os
+# 解决 Windows httpx 代理问题
+os.environ['NO_PROXY'] = '*'
+os.environ['no_proxy'] = '*'
 
-
-class OllamaChat(BaseChatModel):
-    """
-    LangChain 兼容的 Ollama 聊天模型
-    使用原生 Ollama API
-    """
-    
-    model: str = "qwen3:0.6b"
-    """Ollama 模型名称"""
-    
-    base_url: str = "http://localhost:11434"
-    """Ollama API 地址"""
-    
-    temperature: float = 0.7
-    """温度参数"""
-    
-    top_p: float = 0.9
-    """top_p 参数"""
-    
-    max_tokens: int = 2048
-    """最大 token 数"""
-    
-    system_prompt: str = ""
-    """系统提示词"""
-    
-    @property
-    def _llm_type(self) -> str:
-        return "ollama_chat"
-    
-    def _convert_message_to_dict(self, message: BaseMessage) -> Dict:
-        """将 LangChain 消息转换为 Ollama 格式"""
-        if isinstance(message, HumanMessage):
-            return {"role": "user", "content": message.content}
-        elif isinstance(message, AIMessage):
-            return {"role": "assistant", "content": message.content}
-        elif isinstance(message, SystemMessage):
-            return {"role": "system", "content": message.content}
-        else:
-            return {"role": "user", "content": str(message.content)}
-    
-    def _build_messages(self, messages: List[BaseMessage]) -> List[Dict]:
-        """构建 Ollama 消息格式"""
-        ollama_messages = []
-        
-        for msg in messages:
-            ollama_messages.append(self._convert_message_to_dict(msg))
-        
-        return ollama_messages
-    
-    def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> ChatResult:
-        """同步生成"""
-        ollama_messages = self._build_messages(messages)
-        
-        url = f"{self.base_url}/api/chat"
-        payload = {
-            "model": self.model,
-            "messages": ollama_messages,
-            "stream": False,
-            "options": {
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-                "num_ctx": self.max_tokens,
-            }
-        }
-        
-        try:
-            response = requests.post(url, json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            
-            content = data.get("message", {}).get("content", "")
-            
-            message = AIMessage(content=content)
-            generation = ChatGeneration(message=message)
-            return ChatResult(generations=[generation])
-            
-        except Exception as e:
-            message = AIMessage(content=f"Error: {str(e)}")
-            generation = ChatGeneration(message=message)
-            return ChatResult(generations=[generation])
-    
-    def _stream(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> Generator[ChatGenerationChunk, None, None]:
-        """流式生成"""
-        ollama_messages = self._build_messages(messages)
-        
-        url = f"{self.base_url}/api/chat"
-        payload = {
-            "model": self.model,
-            "messages": ollama_messages,
-            "stream": True,
-            "options": {
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-                "num_ctx": self.max_tokens,
-            }
-        }
-        
-        try:
-            response = requests.post(url, json=payload, stream=True, timeout=120)
-            response.raise_for_status()
-            
-            for line in response.iter_lines():
-                if line:
-                    try:
-                        data = json.loads(line)
-                        if "message" in data:
-                            token = data["message"].get("content", "")
-                            if token:
-                                yield ChatGenerationChunk(
-                                    message=AIMessageChunk(content=token)
-                                )
-                    except:
-                        continue
-                        
-        except Exception as e:
-            yield ChatGenerationChunk(
-                message=AIMessageChunk(content=f"Error: {str(e)}")
-            )
+from typing import List, Dict, Any, Optional, Iterator
+from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 
 class LLMService:
     """
     大语言模型服务
-    内部使用 LangChain 兼容的 OllamaChat
+    使用 LangChain Ollama 封装
     """
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -159,28 +29,22 @@ class LLMService:
         self.max_tokens = self.config.get('max_tokens', 2048)
         self.system_prompt = self.config.get('system_prompt', '')
         
-        # 初始化 LangChain 兼容的聊天模型
-        self._chat_model = OllamaChat(
+        # 初始化 LangChain Ollama 聊天模型
+        self._chat_model = ChatOllama(
             model=self.default_model,
             base_url=self.base_url,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=self.max_tokens,
-            system_prompt=self.system_prompt
+            num_ctx=self.max_tokens,
         )
         
         # 对话历史 (每个 session_id 对应一个消息列表)
-        self._message_histories: Dict[str, List[BaseMessage]] = {}
-    
-    def _get_history(self, session_id: str) -> List[BaseMessage]:
-        """获取或创建会话历史"""
-        if session_id not in self._message_histories:
-            self._message_histories[session_id] = []
-        return self._message_histories[session_id]
+        self._message_histories: Dict[str, List[Dict]] = {}
     
     def get_available_models(self) -> List[str]:
         """获取可用模型列表"""
         try:
+            import requests
             response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 models = response.json().get('models', [])
@@ -192,23 +56,22 @@ class LLMService:
     def chat(self, message: str, history: List[Dict] = None, 
              model: Optional[str] = None) -> str:
         """
-        聊天（同步）- 使用 LangChain 接口
+        聊天（同步）- 使用 LangChain Ollama
         """
         # 如果指定了不同模型，需要重新初始化
         if model and model != self._chat_model.model:
-            self._chat_model = OllamaChat(
+            self._chat_model = ChatOllama(
                 model=model,
                 base_url=self.base_url,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                max_tokens=self.max_tokens,
-                system_prompt=self.system_prompt
+                num_ctx=self.max_tokens,
             )
         
         # 构建消息
         messages = self._build_langchain_messages(message, history)
         
-        # 调用 LangChain 接口
+        # 调用 LangChain Ollama
         try:
             response = self._chat_model.invoke(messages)
             return response.content
@@ -218,36 +81,38 @@ class LLMService:
     def chat_stream(self, message: str, history: List[Dict] = None,
                     model: Optional[str] = None) -> Iterator[str]:
         """
-        聊天（流式）- 使用 LangChain 接口
+        聊天（流式）- 使用 LangChain Ollama
         """
         # 如果指定了不同模型，需要重新初始化
         if model and model != self._chat_model.model:
-            self._chat_model = OllamaChat(
+            self._chat_model = ChatOllama(
                 model=model,
                 base_url=self.base_url,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                max_tokens=self.max_tokens,
-                system_prompt=self.system_prompt
+                num_ctx=self.max_tokens,
             )
         
         # 构建消息
         messages = self._build_langchain_messages(message, history)
         
-        # 流式调用 LangChain 接口
+        # 流式调用 LangChain Ollama
         try:
             for chunk in self._chat_model.stream(messages):
-                # 处理流式返回的不同格式
+                # 流式返回的是 AIMessage 对象，需要获取 content
+                content = None
                 if hasattr(chunk, 'content'):
                     content = chunk.content
-                else:
+                elif chunk:
                     content = str(chunk)
+                
+                # 跳过空内容
                 if content:
                     yield content
         except Exception as e:
             yield f"Error: {str(e)}"
     
-    def _build_langchain_messages(self, message: str, history: List[Dict] = None) -> List[BaseMessage]:
+    def _build_langchain_messages(self, message: str, history: List[Dict] = None) -> List:
         """构建 LangChain 消息列表"""
         messages = []
         
@@ -298,11 +163,10 @@ class LLMService:
             self.system_prompt = config['system_prompt']
         
         # 重新初始化模型
-        self._chat_model = OllamaChat(
+        self._chat_model = ChatOllama(
             model=self.default_model,
             base_url=self.base_url,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=self.max_tokens,
-            system_prompt=self.system_prompt
+            num_ctx=self.max_tokens,
         )

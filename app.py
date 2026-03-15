@@ -6,6 +6,10 @@ Flask + Ollama 聊天应用
 import os
 import sys
 
+# 解决 Windows httpx 代理问题（在任何导入之前设置）
+os.environ['NO_PROXY'] = '*'
+os.environ['no_proxy'] = '*'
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask

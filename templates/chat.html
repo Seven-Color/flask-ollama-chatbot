@@ -374,15 +374,26 @@
             }
         });
         
-        // 语音输入 - 支持 Whisper 离线模式
-        voiceBtn.addEventListener('click', async () => {
-            // 切换 Whisper 模式
-            whisperMode = !whisperMode;
-            voiceBtn.classList.toggle('whisper-mode', whisperMode);
+        // 语音输入 - 双击切换模式，单击开始/结束录音
+        let lastClickTime = 0;
+        
+        voiceBtn.addEventListener('click', async (e) => {
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastClickTime;
             
+            // 双击切换模式（300ms内两次点击）
+            if (timeDiff < 300) {
+                whisperMode = !whisperMode;
+                voiceBtn.classList.toggle('whisper-mode', whisperMode);
+                statusDiv.textContent = whisperMode ? 'Whisper 离线模式' : 'Web Speech 在线模式';
+                lastClickTime = 0;
+                return;
+            }
+            lastClickTime = currentTime;
+            
+            // 单击处理
             if (whisperMode) {
-                statusDiv.textContent = 'Whisper 模式 - 点击录音';
-                
+                // Whisper 模式
                 if (isRecording) {
                     // 停止录音
                     mediaRecorder.stop();
@@ -405,6 +416,7 @@
                             formData.append('audio', audioBlob, 'recording.wav');
                             
                             voiceModal.classList.remove('active');
+                            voiceBtn.classList.remove('recording');
                             statusDiv.textContent = '正在识别...';
                             
                             try {
@@ -415,15 +427,14 @@
                                 const data = await res.json();
                                 if (data.text) {
                                     messageInput.value = data.text;
-                                    statusDiv.textContent = '识别完成';
+                                    statusDiv.textContent = '识别完成: ' + data.text;
                                 } else {
                                     statusDiv.textContent = '识别失败: ' + (data.error || '未知错误');
                                 }
-                            } catch (e) {
-                                statusDiv.textContent = '识别错误: ' + e.message;
+                            } catch (err) {
+                                statusDiv.textContent = '识别错误: ' + err.message;
                             }
                             
-                            // 停止所有轨道
                             stream.getTracks().forEach(track => track.stop());
                         };
                         
@@ -431,20 +442,20 @@
                         isRecording = true;
                         voiceBtn.classList.add('recording');
                         voiceModal.classList.add('active');
-                        voiceResult.textContent = '正在录音...（点击停止）';
+                        voiceResult.textContent = '正在录音...（单击停止）';
+                        statusDiv.textContent = 'Whisper 录音中...';
                         
-                    } catch (e) {
-                        alert('无法访问麦克风: ' + e.message);
-                        whisperMode = false;
-                        voiceBtn.classList.remove('whisper-mode');
+                    } catch (err) {
+                        alert('无法访问麦克风: ' + err.message);
                     }
                 }
             } else {
                 // Web Speech API 模式
-                if (isRecording && mediaRecorder) {
-                    mediaRecorder.stop();
+                if (isRecording && recognition) {
+                    recognition.stop();
                     isRecording = false;
                     voiceBtn.classList.remove('recording');
+                    return;
                 }
                 
                 if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -462,6 +473,7 @@
                     voiceBtn.classList.add('recording');
                     voiceModal.classList.add('active');
                     voiceResult.textContent = '正在聆听...';
+                    statusDiv.textContent = 'Web Speech 聆听中...';
                 };
                 
                 recognition.onresult = (event) => {
@@ -472,6 +484,7 @@
                     if (final) {
                         voiceResult.textContent = final;
                         messageInput.value = final;
+                        statusDiv.textContent = '识别完成: ' + final;
                     }
                 };
                 
@@ -479,10 +492,15 @@
                     voiceBtn.classList.remove('recording');
                     voiceModal.classList.remove('active');
                     voiceResult.textContent = '识别错误: ' + e.error;
+                    statusDiv.textContent = '识别错误: ' + e.error;
                 };
                 
-                recognition.onend = () => voiceBtn.classList.remove('recording');
+                recognition.onend = () => {
+                    voiceBtn.classList.remove('recording');
+                };
+                
                 recognition.start();
+                isRecording = true;
             }
         });
         
